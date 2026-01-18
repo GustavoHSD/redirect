@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mercado Livre OAuth Redirect</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:40px;color:#111}
+    code{background:#f3f4f6;padding:4px 8px;border-radius:6px;display:inline-block}
+    .box{margin-top:18px}
+    button{margin-right:8px;padding:8px 12px}
+  </style>
+</head>
+<body>
+  <h1>Mercado Livre OAuth Redirect</h1>
+  <p>Este arquivo recebe os parâmetros de redirecionamento do OAuth (query string) e facilita a cópia/encaminhamento.</p>
+
+  <div id="status" class="box">Aguardando dados...</div>
+
+  <div id="data" class="box" style="display:none">
+    <div><strong>code:</strong> <code id="codeVal"></code></div>
+    <div style="margin-top:8px"><strong>state:</strong> <code id="stateVal"></code></div>
+    <div style="margin-top:12px">
+      <button id="copyBtn">Copiar código</button>
+      <button id="sendBtn" style="display:none">Enviar ao backend</button>
+    </div>
+    <div id="sendResult" style="margin-top:12px;color:#065f46"></div>
+  </div>
+
+  <script>
+    // Configure aqui se quiser que a página encaminhe automaticamente o code para seu backend.
+    // Ex: const BACKEND_URL = 'https://seu-backend.exemplo/exchange-token';
+    const BACKEND_URL = '';
+
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    const error = params.get('error');
+
+    const statusEl = document.getElementById('status');
+    const dataEl = document.getElementById('data');
+    const codeEl = document.getElementById('codeVal');
+    const stateEl = document.getElementById('stateVal');
+    const copyBtn = document.getElementById('copyBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const sendResult = document.getElementById('sendResult');
+
+    if (error) {
+      statusEl.textContent = 'Erro no fluxo OAuth: ' + error;
+    } else if (code) {
+      statusEl.textContent = 'Recebido code. Copie ou envie para seu backend.';
+      dataEl.style.display = 'block';
+      codeEl.textContent = code;
+      stateEl.textContent = state || '';
+
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code);
+          copyBtn.textContent = 'Copiado!';
+        } catch (e) {
+          copyBtn.textContent = 'Erro ao copiar';
+        }
+      });
+
+      if (BACKEND_URL) {
+        sendBtn.style.display = 'inline-block';
+        sendBtn.addEventListener('click', sendToBackend);
+        // se desejar enviar automaticamente, descomente a linha abaixo
+        // sendToBackend();
+      }
+
+    } else {
+      statusEl.innerHTML = 'Nenhum parâmetro encontrado. Este arquivo deve ser usado como Redirect URI no Mercado Livre OAuth.';
+    }
+
+    async function sendToBackend(){
+      sendResult.textContent = 'Enviando...';
+      try{
+        const res = await fetch(BACKEND_URL, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({code, state})
+        });
+        const text = await res.text();
+        sendResult.textContent = 'Resposta do backend: ' + (text || res.statusText);
+      }catch(err){
+        sendResult.textContent = 'Erro ao enviar: ' + (err.message || err);
+      }
+    }
+  </script>
+</body>
+</html>
