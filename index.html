@@ -30,7 +30,7 @@
   <script>
     // Configure aqui se quiser que a página encaminhe automaticamente o code para seu backend.
     // Ex: const BACKEND_URL = 'https://seu-backend.exemplo/exchange-token';
-    const BACKEND_URL = '';
+      const BACKEND_URL = 'com.gustavohsd.ml-verify://auth';
 
     const params = new URLSearchParams(location.search);
     const code = params.get('code');
@@ -52,41 +52,13 @@
       dataEl.style.display = 'block';
       codeEl.textContent = code;
       stateEl.textContent = state || '';
-
-      copyBtn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(code);
-          copyBtn.textContent = 'Copiado!';
-        } catch (e) {
-          copyBtn.textContent = 'Erro ao copiar';
-        }
-      });
-
-      if (BACKEND_URL) {
-        sendBtn.style.display = 'inline-block';
-        sendBtn.addEventListener('click', sendToBackend);
-        // se desejar enviar automaticamente, descomente a linha abaixo
-        // sendToBackend();
-      }
-
+     setTimeout(() => {
+         window.location.href= "com.gustavohsd.ml-verify://auth?code=" + code;
+     }, 500)
     } else {
       statusEl.innerHTML = 'Nenhum parâmetro encontrado. Este arquivo deve ser usado como Redirect URI no Mercado Livre OAuth.';
     }
 
-    async function sendToBackend(){
-      sendResult.textContent = 'Enviando...';
-      try{
-        const res = await fetch(BACKEND_URL, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({code, state})
-        });
-        const text = await res.text();
-        sendResult.textContent = 'Resposta do backend: ' + (text || res.statusText);
-      }catch(err){
-        sendResult.textContent = 'Erro ao enviar: ' + (err.message || err);
-      }
-    }
   </script>
 </body>
 </html>
