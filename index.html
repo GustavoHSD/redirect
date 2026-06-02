@@ -514,6 +514,48 @@
     const state = params.get('state');
     const error = params.get('error');
 
+    // Determine deep link and fallback web URLs
+    let deepLink = null;
+    let fallbackUrl = null;
+
+    function isWebUrl(url) {
+      return url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('http'));
+    }
+
+    function isDeepLink(url) {
+      return url && url.includes('://') && !isWebUrl(url);
+    }
+
+    // Classify BACKEND_URL
+    if (isDeepLink(BACKEND_URL)) {
+      deepLink = BACKEND_URL;
+    } else if (isWebUrl(BACKEND_URL)) {
+      fallbackUrl = BACKEND_URL;
+    }
+
+    // Classify state parameter
+    if (state) {
+      if (isDeepLink(state)) {
+        deepLink = state;
+      } else if (isWebUrl(state)) {
+        fallbackUrl = state;
+      }
+    }
+
+    // Helper to generate the exact redirection URL with parameters appended
+    function getRedirectUrl(baseUrl, codeVal, stateVal) {
+      if (!baseUrl) return '';
+      let url = baseUrl;
+      const separator1 = url.includes('?') ? '&' : '?';
+      url += separator1 + 'code=' + encodeURIComponent(codeVal);
+      // Only append state if it was not used as the baseUrl itself
+      if (stateVal && baseUrl !== stateVal) {
+        const separator2 = url.includes('?') ? '&' : '?';
+        url += separator2 + 'state=' + encodeURIComponent(stateVal);
+      }
+      return url;
+    }
+
     const portalCard = document.getElementById('portalCard');
     const cardTitle = document.getElementById('cardTitle');
     const statusEl = document.getElementById('status');
@@ -550,9 +592,12 @@
       }
 
       // Configure the primary action button based on the redirection type
-      if (BACKEND_URL) {
+      if (deepLink) {
         sendBtn.style.display = 'inline-flex';
-        if (BACKEND_URL.startsWith('http')) {
+        sendBtn.textContent = 'Abrir no Aplicativo';
+      } else if (fallbackUrl) {
+        sendBtn.style.display = 'inline-flex';
+        if (fallbackUrl.startsWith('http')) {
           sendBtn.textContent = 'Enviar ao Backend';
         } else {
           sendBtn.textContent = 'Abrir no Aplicativo';
@@ -573,7 +618,28 @@
 
       // Perform automatic redirection
       setTimeout(() => {
-        window.location.href = BACKEND_URL + "?code=" + encodeURIComponent(code);
+        if (deepLink) {
+          window.location.href = getRedirectUrl(deepLink, code, state);
+          
+          if (fallbackUrl) {
+            let appOpened = false;
+            const handleVisibilityChange = () => {
+              if (document.hidden) appOpened = true;
+            };
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('blur', handleVisibilityChange);
+
+            setTimeout(() => {
+              document.removeEventListener('visibilitychange', handleVisibilityChange);
+              window.removeEventListener('blur', handleVisibilityChange);
+              if (!appOpened && !document.hidden) {
+                window.location.href = getRedirectUrl(fallbackUrl, code, state);
+              }
+            }, 2500);
+          }
+        } else if (fallbackUrl) {
+          window.location.href = getRedirectUrl(fallbackUrl, code, state);
+        }
       }, REDIRECT_TIMEOUT);
 
     } else {
@@ -608,34 +674,57 @@
     sendBtn.addEventListener('click', () => {
       if (!code) return;
 
-      if (BACKEND_URL.startsWith('http')) {
-        sendResult.style.color = 'var(--muted)';
-        sendResult.textContent = 'Enviando ao servidor...';
-
-        fetch(BACKEND_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ code: code, state: state })
-        })
-        .then(response => {
-          if (response.ok) {
-            sendResult.style.color = 'var(--success)';
-            sendResult.textContent = 'Código transmitido com sucesso!';
-          } else {
-            throw new Error('Código HTTP ' + response.status);
-          }
-        })
-        .catch(err => {
-          sendResult.style.color = 'var(--error)';
-          sendResult.textContent = 'Falha no envio: ' + err.message;
-        });
-      } else {
-        // Direct custom URI scheme navigation
+      if (deepLink) {
         sendResult.style.color = 'var(--primary)';
         sendResult.textContent = 'Redirecionando manualmente...';
-        window.location.href = BACKEND_URL + "?code=" + encodeURIComponent(code);
+        window.location.href = getRedirectUrl(deepLink, code, state);
+        
+        if (fallbackUrl) {
+          let appOpened = false;
+          const handleVisibilityChange = () => {
+            if (document.hidden) appOpened = true;
+          };
+          document.addEventListener('visibilitychange', handleVisibilityChange);
+          window.addEventListener('blur', handleVisibilityChange);
+
+          setTimeout(() => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('blur', handleVisibilityChange);
+            if (!appOpened && !document.hidden) {
+              window.location.href = getRedirectUrl(fallbackUrl, code, state);
+            }
+          }, 2500);
+        }
+      } else if (fallbackUrl) {
+        if (fallbackUrl.startsWith('http')) {
+          sendResult.style.color = 'var(--muted)';
+          sendResult.textContent = 'Enviando ao servidor...';
+
+          fetch(fallbackUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ code: code, state: state })
+          })
+          .then(response => {
+            if (response.ok) {
+              sendResult.style.color = 'var(--success)';
+              sendResult.textContent = 'Código transmitido com sucesso!';
+            } else {
+              throw new Error('Código HTTP ' + response.status);
+            }
+          })
+          .catch(err => {
+            sendResult.style.color = 'var(--error)';
+            sendResult.textContent = 'Falha no envio: ' + err.message;
+          });
+        } else {
+          // Direct custom URI scheme navigation (if fallback is not http/https but another custom URI)
+          sendResult.style.color = 'var(--primary)';
+          sendResult.textContent = 'Redirecionando manualmente...';
+          window.location.href = getRedirectUrl(fallbackUrl, code, state);
+        }
       }
     });
   </script>
