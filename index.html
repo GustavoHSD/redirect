@@ -505,14 +505,24 @@
   </footer>
 
   <script>
-    // Configure aqui se quiser que a página encaminhe automaticamente o code para seu backend.
-    // Ex: const BACKEND_URL = 'https://seu-backend.exemplo/exchange-token';
-    const BACKEND_URL = 'com.gustavohsd.ml-verify://auth';
-
+    // Smart detection of target application from state or source
     const params = new URLSearchParams(location.search);
     const code = params.get('code');
     const state = params.get('state');
     const error = params.get('error');
+
+    // Default configuration for multi-app OAuth hub
+    let BACKEND_URL = '';
+
+    // Smart route determination
+    if (state === 'pdv' || (state && state.includes('pdv'))) {
+      BACKEND_URL = 'pdv://auth';
+    } else if (state === 'ml-verify' || (state && state.includes('ml-verify'))) {
+      BACKEND_URL = 'com.gustavohsd.ml-verify://auth';
+    } else {
+      // Default fallback
+      BACKEND_URL = 'pdv://auth';
+    }
 
     // Determine deep link and fallback web URLs
     let deepLink = null;
