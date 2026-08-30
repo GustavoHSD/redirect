@@ -515,13 +515,16 @@
     let BACKEND_URL = '';
 
     // Smart route determination
-    if (state === 'pdv' || (state && state.includes('pdv'))) {
+    if (state === 'catalog' || (state && state.includes('catalog')) || (state && state.includes('studio'))) {
+      // Direct POST to Bling Catalog Studio backend running locally on port 8000
+      BACKEND_URL = 'http://localhost:8000/api/bling/oauth/callback';
+    } else if (state === 'pdv' || (state && state.includes('pdv'))) {
       BACKEND_URL = 'pdv://auth';
     } else if (state === 'ml-verify' || (state && state.includes('ml-verify'))) {
       BACKEND_URL = 'com.gustavohsd.ml-verify://auth';
     } else {
       // Default fallback
-      BACKEND_URL = 'pdv://auth';
+      BACKEND_URL = 'http://localhost:8000/api/bling/oauth/callback';
     }
 
     // Determine deep link and fallback web URLs
